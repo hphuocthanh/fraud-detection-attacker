@@ -5,19 +5,21 @@ import numpy as np  # linear algebra
 import pandas as pd  # data processing, CSV file I/O (e.g. pd.read_csv)
 
 # from matplotlib import pyplot as plt
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+# from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.model_selection import train_test_split
 
 from sklearn.impute import SimpleImputer
 
-from sklearn.tree import DecisionTreeClassifier
+# from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 
 import pickle
-
+import os
+import joblib
 
 # Read train data
 train_data = pd.read_csv(
-    "../attacker_data/train_attacker_2022.csv", index_col="id", skipinitialspace=True
+    os.path.join(os.path.dirname(__file__), "../attacker_data/train_attacker_2022.csv"), index_col="id", skipinitialspace=True
 )
 
 # Clean data
@@ -76,13 +78,13 @@ def imputer(df):
 
 
 # init confusion matrix visualization
-def confusion_matrix_df(y_test, y_pred):
-    df = pd.DataFrame(
-        confusion_matrix(y_test, y_pred),
-        columns=["Predict No Distress", "Predict Distress"],
-        index=["Actual No Distress", "Actual Distress"],
-    )
-    return df.style.background_gradient(cmap="Greens")
+# def confusion_matrix_df(y_test, y_pred):
+#     df = pd.DataFrame(
+#         confusion_matrix(y_test, y_pred),
+#         columns=["Predict No Distress", "Predict Distress"],
+#         index=["Actual No Distress", "Actual Distress"],
+#     )
+#     return df.style.background_gradient(cmap="Greens")
 
 
 # impute train data
@@ -92,12 +94,15 @@ imputer(train_data)
 train_data = pd.get_dummies(train_data)
 
 # save processed data
-train_data.to_csv("../processed/train.csv")
+train_data.to_csv(os.path.join(os.path.dirname(__file__),"../processed/train.csv"))
 
 # Train on processed data
-# We decided not to resample the dataset as the result is not differentiable from the imbalanced dataset
 
 # split dataset
+features = ['label','value','num_date_review','dob','unknown_var_1','unknown_var_2','unknown_var_3','unknown_var_7','unknown_var_8','unknown_var_9','unknown_var_10','unknown_var_12','unknown_var_14','unknown_var_15','social_friend_count', 'unknown_var_17']
+for feat in train_data.columns:
+    if feat not in features:
+        train_data = train_data.drop(feat, axis=1)
 n_state = 45
 X_train, X_test, y_train, y_test = train_test_split(
     train_data.drop("label", axis=1),
@@ -107,14 +112,13 @@ X_train, X_test, y_train, y_test = train_test_split(
     random_state=n_state,
 )
 
-# Decision Tree Classifier
-my_tree = DecisionTreeClassifier(random_state=n_state)
-model_dectree = my_tree.fit(X_train, y_train)
-y_pred_dectree = model_dectree.predict(X_test)
+forest = RandomForestClassifier(random_state=n_state)
+model = forest.fit(X_train, y_train)
+y_pred_dectree = model.predict(X_test)
 
-print(classification_report(y_test, y_pred_dectree))
-print(f"Decision Tree Accuracy: {100*round(accuracy_score(y_test, y_pred_dectree),2)}%")
-confusion_matrix_df(y_test, y_pred_dectree)
+# print(classification_report(y_test, y_pred_dectree))
+# print(f"Decision Tree Accuracy: {100*round(accuracy_score(y_test, y_pred_dectree),2)}%")
+# confusion_matrix_df(y_test, y_pred_dectree)
 
 # save the model
-pickle.dump(model_dectree, open("../../model.pkl", "wb"))
+joblib.dump(model, open(os.path.join(os.path.dirname(__file__),"../../model.pkl"), "wb"), 9)
